@@ -2,127 +2,190 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+
 // everyone starts with a Guide in play but don't start moving until they have a Climber
 
 contract Card is ERC1155 {
 
     enum CardType {
-                    GUIDE,  // Guide, if it dies you halt progress
-                    CLIMBER, // attack the guide
-                    GEAR, // Enchantments
-                    ACTION, // Instants
-                    PLAN, // Can increase ascention rate
-                    TOOL, // Artifacts
-                    REST_STOP, // tap to pay cast cost
-                    EMERGENCY, // Interrupts that halt progress
-                    RESCUE // Counter Emergency or provide guide protection
-                    } 
+        GUIDE, // Guide, if it dies you halt progress; itoa
+        CLIMBER, // attack the guide
+        GEAR, // Enchantments
+        ACTION, // Instants
+        PLAN, // Can increase ascention rate
+        TOOL, // Artifacts
+        CAMP, // tap to pay cast cost
+        EMERGENCY, // Interrupts that halt progress
+        RESCUE // Counter Emergency or provide guide protection
+    }
 
     // color pie
     enum Color {
-                    RED, 
-                    GREEN,
-                    BLUE,
-                    BLACK, 
-                    WHITE,
-                    COLORLESS 
-                }
-
-    // SetList
-    struct SetList {
-        Guide[] guide;
-        Climber[] climber;
-        Gear[] gear;
-        Action[] action;
-        Plan[] plan;
-        Tool[] tool;
-        Emergency[] emergency;
-        Rescue[] rescue;        
+        RED, // iota
+        GREEN,
+        BLUE,
+        BLACK,
+        WHITE,
+        COLORLESS
     }
 
     // Guide Master
     address public guideMaster;
 
+    // mappings
+    mapping(Color => mapping(CardType => uint256)) public CardTypeQtyByColor;
+
+    mapping(uint256 => Card) public CardByID;
+
+    mapping(uint256 => uint256) public MaxSupplyByCard;
+
+    mapping(uint256 => uint256) public CurrentSupplyByCard;
+
+
+
     // only guideMaster modifier
     modifier onlyGuideMaster() {
-        require(msg.sender == guideMaster, "Only the Guide Master can call this function");
+        require(
+            msg.sender == guideMaster,
+            "Only the Guide Master can call this function"
+        );
         _;
     }
 
-    mapping(Color => mapping (CardType => SetList)) public ColorSet;
+    // structs
+    struct Card {
+        uint256 id;
+        string name;
+        CardType cardType;
+        Color color;
+        uint256 colorlessCost;
+        uint256 colorCost;
+        uint256 power; // attack
+        uint256 toughness; // defense
+        uint256 speed; // movement rate
+        uint256 agility; // dodge, obstacle avoidance
+    }
+
+
     constructor() ERC1155("https://kodr.pro/aa/item/") {
         guideMaster = msg.sender;
 
-            // set the setlists for each color [wip]
-        ColorSet[Color.RED][CardType.GUIDE] = SetList(Guide[](5));
-        ColorSet[Color.RED][CardType.CLIMBER] = SetList(Climber[](45));
-        ColorSet[Color.RED][CardType.GEAR] = SetList(Gear[](30));
-        ColorSet[Color.RED][CardType.ACTION] = SetList(Action[](35));
-        ColorSet[Color.RED][CardType.PLAN] = SetList(Plan[](25));
-        ColorSet[Color.RED][CardType.TOOL] = SetList(Tool[](20));
-        ColorSet[Color.RED][CardType.EMERGENCY] = SetList(Emergency[](15));
-        ColorSet[Color.RED][CardType.RESCUE] = SetList(Rescue[](10));
+        // set the setlists for each color [wip]
+        // these are different types of cards that can be minted
+        // not total qty of cards that can be minted
+        CardTypeQtyByColor[Color.RED][CardType.GUIDE] = 5;
+        CardTypeQtyByColor[Color.RED][CardType.CLIMBER] = 50;
+        CardTypeQtyByColor[Color.RED][CardType.GEAR] = 30;
+        CardTypeQtyByColor[Color.RED][CardType.ACTION] = 30;
+        CardTypeQtyByColor[Color.RED][CardType.PLAN] = 20;
+        CardTypeQtyByColor[Color.RED][CardType.TOOL] = 25;
+        CardTypeQtyByColor[Color.RED][CardType.CAMP] = 4;
+        CardTypeQtyByColor[Color.RED][CardType.EMERGENCY] = 15;
+        CardTypeQtyByColor[Color.RED][CardType.RESCUE] = 10;
 
-        ColorSet[Color.GREEN][CardType.GUIDE] = SetList(Guide[](5));
-        ColorSet[Color.GREEN][CardType.CLIMBER] = SetList(Climber[](50));
-        ColorSet[Color.GREEN][CardType.GEAR] = SetList(Gear[](30));
-        ColorSet[Color.GREEN][CardType.ACTION] = SetList(Action[](30));
-        ColorSet[Color.GREEN][CardType.PLAN] = SetList(Plan[](25));
-        ColorSet[Color.GREEN][CardType.TOOL] = SetList(Tool[](20));
-        ColorSet[Color.GREEN][CardType.EMERGENCY] = SetList(Emergency[](10));
-        ColorSet[Color.GREEN][CardType.RESCUE] = SetList(Rescue[](15));
+        CardTypeQtyByColor[Color.GREEN][CardType.GUIDE] = 5;
+        CardTypeQtyByColor[Color.GREEN][CardType.CLIMBER] = 50;
+        CardTypeQtyByColor[Color.GREEN][CardType.GEAR] = 30;
+        CardTypeQtyByColor[Color.GREEN][CardType.ACTION] = 30;
+        CardTypeQtyByColor[Color.GREEN][CardType.PLAN] = 25;
+        CardTypeQtyByColor[Color.GREEN][CardType.TOOL] = 20;
+        CardTypeQtyByColor[Color.GREEN][CardType.CAMP] = 4;
+        CardTypeQtyByColor[Color.GREEN][CardType.EMERGENCY] = 10;
+        CardTypeQtyByColor[Color.GREEN][CardType.RESCUE] = 15;
 
-        ColorSet[Color.BLUE][CardType.GUIDE] = SetList(Guide[](5));
-        ColorSet[Color.BLUE][CardType.CLIMBER] = SetList(Climber[](40));
-        ColorSet[Color.BLUE][CardType.GEAR] = SetList(Gear[](30));
-        ColorSet[Color.BLUE][CardType.ACTION] = SetList(Action[](40));
-        ColorSet[Color.BLUE][CardType.PLAN] = SetList(Plan[](30));
-        ColorSet[Color.BLUE][CardType.TOOL] = SetList(Tool[](20));
-        ColorSet[Color.BLUE][CardType.EMERGENCY] = SetList(Emergency[](10));
-        ColorSet[Color.BLUE][CardType.RESCUE] = SetList(Rescue[](10));
+        CardTypeQtyByColor[Color.BLUE][CardType.GUIDE] = 5;
+        CardTypeQtyByColor[Color.BLUE][CardType.CLIMBER] = 40;
+        CardTypeQtyByColor[Color.BLUE][CardType.GEAR] = 30;
+        CardTypeQtyByColor[Color.BLUE][CardType.ACTION] = 40;
+        CardTypeQtyByColor[Color.BLUE][CardType.PLAN] = 30;
+        CardTypeQtyByColor[Color.BLUE][CardType.TOOL] = 20;
+        CardTypeQtyByColor[Color.BLUE][CardType.CAMP] = 4;
+        CardTypeQtyByColor[Color.BLUE][CardType.EMERGENCY] = 10;
+        CardTypeQtyByColor[Color.BLUE][CardType.RESCUE] = 10;
 
-        ColorSet[Color.BLACK][CardType.GUIDE] = SetList(Guide[](5));
-        ColorSet[Color.BLACK][CardType.CLIMBER] = SetList(Climber[](45));
-        ColorSet[Color.BLACK][CardType.GEAR] = SetList(Gear[](30));
-        ColorSet[Color.BLACK][CardType.ACTION] = SetList(Action[](35));
-        ColorSet[Color.BLACK][CardType.PLAN] = SetList(Plan[](25));
-        ColorSet[Color.BLACK][CardType.TOOL] = SetList(Tool[](20));
-        ColorSet[Color.BLACK][CardType.EMERGENCY] = SetList(Emergency[](15));
-        ColorSet[Color.BLACK][CardType.RESCUE] = SetList(Rescue[](10));
+        CardTypeQtyByColor[Color.BLACK][CardType.GUIDE] = 5;
+        CardTypeQtyByColor[Color.BLACK][CardType.CLIMBER] = 45;
+        CardTypeQtyByColor[Color.BLACK][CardType.GEAR] = 30;
+        CardTypeQtyByColor[Color.BLACK][CardType.ACTION] = 35;
+        CardTypeQtyByColor[Color.BLACK][CardType.PLAN] = 25;
+        CardTypeQtyByColor[Color.BLACK][CardType.TOOL] = 20;
+        CardTypeQtyByColor[Color.BLACK][CardType.CAMP] = 4;
+        CardTypeQtyByColor[Color.BLACK][CardType.EMERGENCY] = 15;
+        CardTypeQtyByColor[Color.BLACK][CardType.RESCUE] = 10;
 
-        ColorSet[Color.WHITE][CardType.GUIDE] = SetList(Guide[](5));
-        ColorSet[Color.WHITE][CardType.CLIMBER] = SetList(Climber[](50));
-        ColorSet[Color.WHITE][CardType.GEAR] = SetList(Gear[](30));
-        ColorSet[Color.WHITE][CardType.ACTION] = SetList(Action[](30));
-        ColorSet[Color.WHITE][CardType.PLAN] = SetList(Plan[](25));
-        ColorSet[Color.WHITE][CardType.TOOL] = SetList(Tool[](20));
-        ColorSet[Color.WHITE][CardType.EMERGENCY] = SetList(Emergency[](10));
-        ColorSet[Color.WHITE][CardType.RESCUE] = SetList(Rescue[](15));
+        CardTypeQtyByColor[Color.WHITE][CardType.GUIDE] = 5;
+        CardTypeQtyByColor[Color.WHITE][CardType.CLIMBER] = 50;
+        CardTypeQtyByColor[Color.WHITE][CardType.GEAR] = 30;
+        CardTypeQtyByColor[Color.WHITE][CardType.ACTION] = 30;
+        CardTypeQtyByColor[Color.WHITE][CardType.PLAN] = 25;
+        CardTypeQtyByColor[Color.WHITE][CardType.TOOL] = 20;
+        CardTypeQtyByColor[Color.WHITE][CardType.CAMP] = 4;
+        CardTypeQtyByColor[Color.WHITE][CardType.EMERGENCY] = 10;
+        CardTypeQtyByColor[Color.WHITE][CardType.RESCUE] = 15;
 
-        ColorSet[Color.COLORLESS][CardType.GEAR] = SetList(Gear[](40));
-        ColorSet[Color.COLORLESS][CardType.ACTION] = SetList(Action[](30));
-        ColorSet[Color.COLORLESS][CardType.PLAN] = SetList(Plan[](20));
-        ColorSet[Color.COLORLESS][CardType.TOOL] = SetList(Tool[](10));
-
+        CardTypeQtyByColor[Color.COLORLESS][CardType.GEAR] = 40;
+        CardTypeQtyByColor[Color.COLORLESS][CardType.ACTION] = 30;
+        CardTypeQtyByColor[Color.COLORLESS][CardType.PLAN] = 20;
+        CardTypeQtyByColor[Color.COLORLESS][CardType.TOOL] = 10;
     }
 
-    // only guidemaster mint to send all cards to the marketplace
-    function mintColorSet(Color _color, CardType _cardType) public onlyGuideMaster {
-        //WIP
+    function setMaxCardSupply(
+        uint256 _id,
+        uint256 _maxSupply
+    ) public onlyGuideMaster {
+        MaxSupplyByCard[_id] = _maxSupply;
+    }
+
+
+    function createCard(
+        string memory _name,
+        CardType _cardType,
+        Color _color,
+        uint256 _colorlessCost,
+        uint256 _colorCost,
+        uint256 _power,
+        uint256 _toughness,
+        uint256 _speed,
+        uint256 _agility
+    ) public onlyGuideMaster {
+        require(
+            CardTypeQtyByColor[_color][_cardType] > 0,
+            "No more cards of this type can be created"
+        );
+        Card memory newCard = Card({
+            id: Color + CardType + CardTypeQtyByColor[_color][_cardType],
+            name: _name,
+            cardType: _cardType,
+            color: _color,
+            colorlessCost: _colorlessCost,
+            colorCost: _colorCost,
+            power: _power,
+            toughness: _toughness,
+            speed: _speed,
+            agility: _agility
+        });
+
         
+        CardTypeQtyByColor[_color][_cardType] -= 1;
+        CardByID[newCard.id] = newCard;
+
+        emit CardCreated(_color, _cardType, index, _name);
+
     }
 
-    // create a blank deck with 65 cards, 60 playable and 5 in reserve
-    function _createBlankDeck() public {
-        createCard(GUIDE, 1); 
-        createCard(CLIMBER, 15);             
-        createCard(CAMP, 20); 
-        createCard(GEAR, 8); 
-        createCard(ACTION, 5);
-        createCard(PLAN, 7); 
-        createCard(TOOL, 5); 
-        createCard(EMERGENCY, 2);
-        createCard(RESCUE, 1);
+    // mint
+    function mint(
+        address _to,
+        uint256 _id,
+        uint256 _quantity,
+        bytes memory _data
+    ) public override onlyGuideMaster {
+        require(
+            CurrentSupplyByCard[_id] + _quantity <= MaxSupplyByCard[_id],
+            "Max supply reached"
+        );
+        CurrentSupplyByCard[_id] += _quantity;
+        _mint(_to, _id, _quantity, _data);
     }
 
     // uri override
@@ -130,4 +193,26 @@ contract Card is ERC1155 {
         return string(abi.encodePacked(super.uri(_id), ".json"));
     }
 
+    function updateCardTypeQtyByColor(
+        Color _color,
+        CardType _cardType,
+        uint256 _qty
+    ) public onlyGuideMaster {
+        CardTypeQtyByColor[_color][_cardType] = _qty;
+        emit CardTypeQtyByColorUpdated(_color, _cardType, _qty);
+    }
+
+    // events
+    event CardTypeQtyByColorUpdated(
+        Color _color,
+        CardType _cardType,
+        uint256 _qty
+    );
+
+   event CardCreated(
+        Color color,
+        CardType cardType,
+        uint256 cardIndex,
+        string name
+    );
 }

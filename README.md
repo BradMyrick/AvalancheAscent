@@ -1,20 +1,18 @@
 # Avalanche Ascent
 
-## Pitch Deck Layout 
+###  1: Introduction
 
-### Slide 1: Introduction
+"Avalanche Ascent" is a trading card game  (TCG) built on the Avalanche subnet, leveraging its scalability, security, and decentralization. The main goal of the game is to ascend the mountain before the avalanche, providing a thrilling and engaging gameplay experience.
 
-"Avalanche Ascent" is a decentralized card game inspired by Magic: The Gathering, but with its own unique cards and mechanics. The game is built on the Avalanche subnet, leveraging its scalability, security, and decentralization. The main goal of the game is to ascend the mountain before the avalanche, providing a thrilling and engaging gameplay experience.
-
-### Slide 2: Tokenization of Game Assets
+###  2: Tokenization of Game Assets
 
 Each card in the game is tokenized as a non-fungible token (NFT) on the Avalanche blockchain. This gives players true ownership of their cards, allowing them to buy, sell, or trade them freely. This tokenization of game assets is a key feature of "Avalanche Ascent," providing a unique and immersive gaming experience.
 
-### Slide 3: Game Economy
+###  3: Game Economy
 
 "Avalanche Ascent" operates on a play-to-earn model, where players can earn tokens by playing the game. These tokens can be used to purchase card packs from the store, adding a rewarding and competitive element to the game. The game also features a marketplace where players can trade their cards with others, fostering a dynamic and interactive game economy.
 
-### Slide 4: Narrative
+###  4: Narrative
 
 In the heart of the Avalanche chain, a mountainous landscape of opportunity and challenge awaits. Welcome to "Avalanche Ascent," a game where the thrill of the climb and the peril of the descent are as real as the tokens you earn.
 
@@ -28,15 +26,15 @@ The community is the lifeblood of "Avalanche Ascent." Players can form teams, st
 
 "Avalanche Ascent" is more than a game; it's a test of strategy, endurance, and courage. It's a journey that will push you to your limits and reward you beyond your expectations. So, gear up, brace yourself, and embark on the adventure of a lifetime. The mountain is calling, and the avalanche is waiting.
 
-### Slide 5: Solidity Smart Contract Structure
+###  5: Solidity Smart Contract Structure
 
 The game is built using Solidity smart contracts. These contracts handle various aspects of the game, including the creation of new cards, card packs, and the game's tokens, as well as the buying, selling, and trading of cards, the game's mechanics, and the distribution of basic lands to new wallets. Each of these contracts interacts with each other to create a seamless gaming experience.
 
-### Slide 6: Development Plan
+###  6: Development Plan
 
 The development plan for "Avalanche Ascent" is divided into five phases: Design and Planning, Development, Testing and Auditing, Deployment, and Marketing and Launch. This plan provides a comprehensive approach to developing a Web3 game based on Magic: The Gathering on the Avalanche subnets, including tokenization of game assets, creating a compelling narrative, and developing smart contracts.
 
-### Slide 7: Conclusion
+###  7: Conclusion
 
 "Avalanche Ascent" is a unique and engaging decentralized card game built on the Avalanche subnet. With its tokenized game assets, play-to-earn model, compelling narrative, and robust smart contract structure, it offers a thrilling and rewarding gaming experience. We invite you to join us on this exciting journey to ascend the mountain and trigger the avalanche!
 

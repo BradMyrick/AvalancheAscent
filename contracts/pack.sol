@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "./card.sol";
 
-contract Packs {
+contract PackContract {
     // Constants
     uint256 public constant CARDS_IN_PACK = 10;
     uint256 public constant CARDS_IN_DECK = 60;

@@ -269,6 +269,10 @@ contract CardContract is ERC1155 {
         return ids;
     }
 
+    function setPackMaster(address _packMaster) external onlyGuideMaster {
+        packMaster = _packMaster;
+    }
+
     // events
     event CardTypeQtyByColorUpdated(
         Color _color,

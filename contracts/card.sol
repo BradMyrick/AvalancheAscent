@@ -31,6 +31,16 @@ contract Card is ERC1155 {
 
     // Guide Master
     address public guideMaster;
+    // Pack Master
+    address public packMaster;
+    // only packMaster modifier
+    modifier onlyPackMaster() {
+        require(
+            msg.sender == packMaster,
+            "Only the Pack Master can call this function"
+        );
+        _;
+    }
 
     // mappings
     mapping(Color => mapping(CardType => uint256)) public CardTypeQtyByColor;
@@ -132,7 +142,7 @@ contract Card is ERC1155 {
     function setMaxCardSupply(
         uint256 _id,
         uint256 _maxSupply
-    ) public onlyGuideMaster {
+    ) external onlyGuideMaster {
         MaxSupplyByCard[_id] = _maxSupply;
     }
 
@@ -147,7 +157,7 @@ contract Card is ERC1155 {
         uint256 _toughness,
         uint256 _speed,
         uint256 _agility
-    ) public onlyGuideMaster {
+    ) external onlyGuideMaster {
         require(
             CardTypeQtyByColor[_color][_cardType] > 0,
             "No more cards of this type can be created"
@@ -188,6 +198,21 @@ contract Card is ERC1155 {
         _mint(_to, _id, _quantity, _data);
     }
 
+    // pack mint
+    function packMint(
+        address _to,
+        uint256 _id,
+        uint256 _quantity,
+        bytes memory _data
+    ) external onlyPackMaster {
+        require(
+            CurrentSupplyByCard[_id] + _quantity <= MaxSupplyByCard[_id],
+            "Max supply reached"
+        );
+        CurrentSupplyByCard[_id] += _quantity;
+        _mint(_to, _id, _quantity, _data);
+    }
+
     // uri override
     function uri(uint256 _id) public view override returns (string memory) {
         return string(abi.encodePacked(super.uri(_id), ".json"));
@@ -197,9 +222,21 @@ contract Card is ERC1155 {
         Color _color,
         CardType _cardType,
         uint256 _qty
-    ) public onlyGuideMaster {
+    ) external onlyGuideMaster {
         CardTypeQtyByColor[_color][_cardType] = _qty;
         emit CardTypeQtyByColorUpdated(_color, _cardType, _qty);
+    }
+
+    function getIdsByColor(Color _color) external view returns (uint256[] memory) {
+        uint256[] memory ids = new uint256[](CardTypeQtyByColor[_color]);
+        uint256 index = 0;
+        for (uint256 i = 0; i < CardTypeQtyByColor[_color].length; i++) {
+            if (CardTypeQtyByColor[_color][i] > 0) {
+                ids[index] = i;
+                index++;
+            }
+        }
+        return ids;
     }
 
     // events

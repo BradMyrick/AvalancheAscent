@@ -29,6 +29,15 @@ contract Packs {
         WhiteRed
     }
 
+    // map deck types to color types
+    mapping(DeckType => uint256[]) public deckTypeToColorType;
+
+    constant deckTypeToColorType[DeckType.REDGREEN] = [PackType.RED, PackType.GREEN];
+    constant deckTypeToColorType[DeckType.BLUEWHITE] = [PackType.BLUE, PackType.WHITE];
+    constant deckTypeToColorType[DeckType.BLACKBLUE] = [PackType.BLACK, PackType.BLUE];
+    constant deckTypeToColorType[DeckType.GreenBlack] = [PackType.GREEN, PackType.BLACK];
+    constant deckTypeToColorType[DeckType.WhiteRed] = [PackType.WHITE, PackType.RED];
+
     // Card contract
     Card public cardContract;
 
@@ -50,31 +59,38 @@ contract Packs {
     }
 
     function buyBoosterPack(PackType packType) public payable {
-        for (uint256 i = 0; i < CARDS_IN_PACK; i++) {
-            uint256[] memory cardIds = cardContract.getIdsByColor(packType);
-            uint256 randomCardId = _getRandomCardId(cardIds);
-            cardContract.packMint(msg.sender, randomCardId, 1, "");
-        }
+        require(msg.value == PACK_PRICE, "Incorrect payment amount");
+        // get random card ids the pack type
+        uint256[] memory cardIds = cardContract.getIdsByColor(packType);
+        // mint pack
+        cardContract.packMint(msg.sender, cardIds, "");
     }
 
     function buyPreBuiltDeck(DeckType deckType) public payable {
-
+        require(msg.value == DECK_PRICE, "Incorrect payment amount");
+        // get color types to build deck from
+        uint256[] memory colorTypes = deckTypeToColorType[deckType];
+        // get random card ids for each color type
+        uint256[] memory color1CardIds = cardContract.getIdsByColor(colorTypes[0]);
+        uint256[] memory color2CardIds = cardContract.getIdsByColor(colorTypes[1]);
+        // get random card ids for each color type
+        uint256[] memory cardIds = new uint256[](CARDS_IN_DECK);
         for (uint256 i = 0; i < CARDS_IN_DECK; i++) {
-            uint256 randomCardId = _getRandomCardId(deckType);
-            cardContract.packMint(msg.sender, randomCardId, 1, "");
+            if (i < CARDS_IN_DECK / 2) {
+                cardIds[i] = _getRandomCardId(color1CardIds);
+            } else {
+                cardIds[i] = _getRandomCardId(color2CardIds);
+            }
         }
+        // mint deck
+        cardContract.deckMint(msg.sender, cardIds, "");
     }
 
     function _getRandomCardId(uint256[] memory cardIds) private view returns (uint256) {
         // [WIP] - add better randomness
-        return cardIds[0];
-
-    }
-
-    function _getRandomCardId(uint256[] memory cardIds) private view returns (uint256) {
-        // [WIP] - add better randomness
-        return cardIds[0];
-
+        uint256 rand = uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty)));
+        // resolve rand to a number between 0 and cardIds.length
+        return cardIds[rand % cardIds.length];
     }
 
     function withdraw() public onlyPackMaster {

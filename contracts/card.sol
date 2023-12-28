@@ -5,8 +5,7 @@ import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 
 // everyone starts with a Guide in play but don't start moving until they have a Climber
 
-contract Card is ERC1155 {
-
+contract CardContract is ERC1155 {
     enum CardType {
         GUIDE, // Guide, if it dies you halt progress; itoa
         CLIMBER, // attack the guide
@@ -51,8 +50,6 @@ contract Card is ERC1155 {
 
     mapping(uint256 => uint256) public CurrentSupplyByCard;
 
-
-
     // only guideMaster modifier
     modifier onlyGuideMaster() {
         require(
@@ -75,7 +72,6 @@ contract Card is ERC1155 {
         uint256 speed; // movement rate
         uint256 agility; // dodge, obstacle avoidance
     }
-
 
     constructor() ERC1155("https://kodr.pro/aa/item/") {
         guideMaster = msg.sender;
@@ -146,6 +142,12 @@ contract Card is ERC1155 {
         MaxSupplyByCard[_id] = _maxSupply;
     }
 
+    uint256 private redIndex = 0;
+    uint256 private greenIndex = 0;
+    uint256 private blueIndex = 0;
+    uint256 private blackIndex = 0;
+    uint256 private whiteIndex = 0;
+    uint256 private colorlessIndex = 0;
 
     function createCard(
         string memory _name,
@@ -162,8 +164,14 @@ contract Card is ERC1155 {
             CardTypeQtyByColor[_color][_cardType] > 0,
             "No more cards of this type can be created"
         );
+
+        uint256 newId = uint256(_color) +
+            uint256(_cardType) +
+            CardTypeQtyByColor[_color][_cardType];
+
+
         Card memory newCard = Card({
-            id: Color + CardType + CardTypeQtyByColor[_color][_cardType],
+            id: newId,
             name: _name,
             cardType: _cardType,
             color: _color,
@@ -173,14 +181,10 @@ contract Card is ERC1155 {
             toughness: _toughness,
             speed: _speed,
             agility: _agility
-        });
+            });
 
-        
         CardTypeQtyByColor[_color][_cardType] -= 1;
-        CardByID[newCard.id] = newCard;
-
-        emit CardCreated(_color, _cardType, index, _name);
-
+        CardByID[newId] = newCard;
     }
 
     // mint
@@ -189,7 +193,7 @@ contract Card is ERC1155 {
         uint256 _id,
         uint256 _quantity,
         bytes memory _data
-    ) public override onlyGuideMaster {
+    ) public onlyGuideMaster {
         require(
             CurrentSupplyByCard[_id] + _quantity <= MaxSupplyByCard[_id],
             "Max supply reached"
@@ -213,6 +217,27 @@ contract Card is ERC1155 {
         _mint(_to, _id, _quantity, _data);
     }
 
+    // deck mint
+    function deckMint(
+        address _to,
+        uint256[] memory _ids,
+        bytes memory _data
+    ) external onlyPackMaster {
+        for (uint256 i = 0; i < _ids.length; i++) {
+            require(
+                CurrentSupplyByCard[_ids[i]] + 1 <= MaxSupplyByCard[_ids[i]],
+                "Max supply reached"
+            );
+            CurrentSupplyByCard[_ids[i]] += 1;
+        }
+        uint256[] memory _quantity = new uint256[](_ids.length);
+        for (uint256 i = 0; i < _ids.length; i++) {
+            _quantity[i] = 1;
+        }
+        // if I have to make a set of the id's then I'll have to calculate the quantity
+        _mintBatch(_to, _ids, _quantity, _data);
+    }
+
     // uri override
     function uri(uint256 _id) public view override returns (string memory) {
         return string(abi.encodePacked(super.uri(_id), ".json"));
@@ -227,12 +252,17 @@ contract Card is ERC1155 {
         emit CardTypeQtyByColorUpdated(_color, _cardType, _qty);
     }
 
-    function getIdsByColor(Color _color) external view returns (uint256[] memory) {
-        uint256[] memory ids = new uint256[](CardTypeQtyByColor[_color]);
+    function getIdsByColorAndCardType(
+        Color _color,
+        CardType _cardType
+    ) external view returns (uint256[] memory) {
+        uint256[] memory ids = new uint256[](
+            CardTypeQtyByColor[_color][_cardType]
+        );
         uint256 index = 0;
-        for (uint256 i = 0; i < CardTypeQtyByColor[_color].length; i++) {
-            if (CardTypeQtyByColor[_color][i] > 0) {
-                ids[index] = i;
+        for (uint256 i = 0; i < ids.length; i++) {
+            if (CardByID[i].color == _color && CardByID[i].cardType == _cardType) {
+                ids[index] = CardByID[i].id;
                 index++;
             }
         }
@@ -246,7 +276,7 @@ contract Card is ERC1155 {
         uint256 _qty
     );
 
-   event CardCreated(
+    event CardCreated(
         Color color,
         CardType cardType,
         uint256 cardIndex,

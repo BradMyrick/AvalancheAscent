@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 
 // everyone starts with a Guide in play but don't start moving until they have a Climber
 
-contract CardContract is ERC1155 {
+contract Card is ERC1155 {
     enum CardType {
         GUIDE, // Guide, if it dies you halt progress; itoa
         CLIMBER, // attack the guide
@@ -44,7 +44,7 @@ contract CardContract is ERC1155 {
     // mappings
     mapping(Color => mapping(CardType => uint256)) public CardTypeQtyByColor;
 
-    mapping(uint256 => Card) public CardByID;
+    mapping(uint256 => CardInfo) public CardByID;
 
     mapping(uint256 => uint256) public MaxSupplyByCard;
 
@@ -60,7 +60,7 @@ contract CardContract is ERC1155 {
     }
 
     // structs
-    struct Card {
+    struct CardInfo {
         uint256 id;
         string name;
         CardType cardType;
@@ -170,7 +170,7 @@ contract CardContract is ERC1155 {
             CardTypeQtyByColor[_color][_cardType];
 
 
-        Card memory newCard = Card({
+        CardInfo memory newCard = CardInfo({
             id: newId,
             name: _name,
             cardType: _cardType,

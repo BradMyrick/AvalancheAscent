@@ -1,15 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBase.sol";
 import "./card.sol";
 
-contract PackContract {
+contract PackContract is Ownable, ReentrancyGuard, VRFConsumerBase {
     // Constants
     uint256 public constant CARDS_IN_PACK = 10;
     uint256 public constant CARDS_IN_DECK = 60;
 
-    uint256 public PACK_PRICE = 0.25 ether;
-    uint256 public DECK_PRICE = 1 ether;
+    uint256 public packPrice = 0.25 ether;
+    uint256 public deckPrice = 1 ether;
+
+    bytes32 internal keyHash;
+    uint256 internal fee;
 
     // 1 colorless card per pack
     enum PackType {
@@ -17,7 +23,7 @@ contract PackContract {
         GREEN,
         BLUE,
         BLACK,
-        WHITE,
+        WHITE
     }
 
     // with one or two colorless cards per deck
@@ -25,101 +31,99 @@ contract PackContract {
         REDGREEN,
         BLUEWHITE,
         BLACKBLUE,
-        GreenBlack,
-        WhiteRed
+        GREENBLACK,
+        WHITERED
     }
 
     // map deck types to color types
-    mapping(DeckType => uint256[]) public deckTypeToColorType;
-
-    constant deckTypeToColorType[DeckType.REDGREEN] = [PackType.RED, PackType.GREEN];
-    constant deckTypeToColorType[DeckType.BLUEWHITE] = [PackType.BLUE, PackType.WHITE];
-    constant deckTypeToColorType[DeckType.BLACKBLUE] = [PackType.BLACK, PackType.BLUE];
-    constant deckTypeToColorType[DeckType.GreenBlack] = [PackType.GREEN, PackType.BLACK];
-    constant deckTypeToColorType[DeckType.WhiteRed] = [PackType.WHITE, PackType.RED];
+    mapping(DeckType => PackType[2]) public deckTypeToColorType;
 
     // Card contract
     Card public cardContract;
 
-    // Pack Master
-    address public packMaster;
+    event BoosterPackBought(address indexed buyer, PackType packType);
+    event PreBuiltDeckBought(address indexed buyer, DeckType deckType);
 
-    // only packMaster modifier
-    modifier onlyPackMaster() {
-        require(
-            msg.sender == packMaster,
-            "Only the Pack Master can call this function"
-        );
-        _;
-    }
-
-    constructor(address _cardContract) {
-        packMaster = msg.sender;
+    constructor(address _cardContract, address _vrfCoordinator, address _linkToken, bytes32 _keyHash, uint256 _fee)
+        VRFConsumerBase(_vrfCoordinator, _linkToken)
+    {
         cardContract = Card(_cardContract);
+        keyHash = _keyHash;
+        fee = _fee;
+
+        deckTypeToColorType[DeckType.REDGREEN] = [PackType.RED, PackType.GREEN];
+        deckTypeToColorType[DeckType.BLUEWHITE] = [PackType.BLUE, PackType.WHITE];
+        deckTypeToColorType[DeckType.BLACKBLUE] = [PackType.BLACK, PackType.BLUE];
+        deckTypeToColorType[DeckType.GREENBLACK] = [PackType.GREEN, PackType.BLACK];
+        deckTypeToColorType[DeckType.WHITERED] = [PackType.WHITE, PackType.RED];
     }
 
-    function buyBoosterPack(PackType packType) public payable {
-        require(msg.value == PACK_PRICE, "Incorrect payment amount");
-        // get random card ids the pack type
-        uint256[] memory cardIds = cardContract.getIdsByColor(packType);
-        // mint pack
-        cardContract.packMint(msg.sender, cardIds, "");
+    function buyBoosterPack(PackType packType) external payable nonReentrant {
+        require(msg.value == packPrice, "Incorrect payment amount");
+
+        requestRandomness(keyHash, fee);
+        // The VRF will call fulfillRandomness which will handle minting the pack
+        // We pass the pack type as the requestId to use it later
+        emit BoosterPackBought(msg.sender, packType);
     }
 
-    function buyPreBuiltDeck(DeckType deckType) public payable {
-        require(msg.value == DECK_PRICE, "Incorrect payment amount");
-        // get color types to build deck from
-        uint256[] memory colorTypes = deckTypeToColorType[deckType];
-        // get random card ids for each color type
-        uint256[] memory color1CardIds = cardContract.getIdsByColor(colorTypes[0]);
-        uint256[] memory color2CardIds = cardContract.getIdsByColor(colorTypes[1]);
-        // get random card ids for each color type
+    function buyPreBuiltDeck(DeckType deckType) external payable nonReentrant {
+        require(msg.value == deckPrice, "Incorrect payment amount");
+
+        requestRandomness(keyHash, fee);
+        // The VRF will call fulfillRandomness which will handle minting the deck
+        // We pass the deck type as the requestId to use it later
+        emit PreBuiltDeckBought(msg.sender, deckType);
+    }
+
+    function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
+        // If the first bit is 0, it's a booster pack. Otherwise, it's a pre-built deck.
+        if (uint256(requestId) & (1 << 255) == 0) {
+            PackType packType = PackType(uint256(requestId));
+            _mintBoosterPack(msg.sender, packType, randomness);
+        } else {
+            DeckType deckType = DeckType(uint256(requestId) & ~(1 << 255));
+            _mintPreBuiltDeck(msg.sender, deckType, randomness);
+        }
+    }
+
+    function _mintBoosterPack(address to, PackType packType, uint256 randomness) private {
+        uint256[] memory cardIds = new uint256[](CARDS_IN_PACK);
+        for (uint256 i = 0; i < CARDS_IN_PACK; i++) {
+            cardIds[i] = _getRandomCardId(packType, randomness, i);
+        }
+        cardContract.packMint(to, cardIds, "");
+    }
+
+    function _mintPreBuiltDeck(address to, DeckType deckType, uint256 randomness) private {
+        PackType[2] memory colorTypes = deckTypeToColorType[deckType];
         uint256[] memory cardIds = new uint256[](CARDS_IN_DECK);
         for (uint256 i = 0; i < CARDS_IN_DECK; i++) {
-            if (i < CARDS_IN_DECK / 2) {
-                cardIds[i] = _getRandomCardId(color1CardIds);
-            } else {
-                cardIds[i] = _getRandomCardId(color2CardIds);
-            }
+            PackType colorType = i < CARDS_IN_DECK / 2 ? colorTypes[0] : colorTypes[1];
+            cardIds[i] = _getRandomCardId(colorType, randomness, i);
         }
-        // mint deck
-        cardContract.deckMint(msg.sender, cardIds, "");
+        cardContract.deckMint(to, cardIds, "");
     }
 
-    function _getRandomCardId(uint256[] memory cardIds) private view returns (uint256) {
-        // [WIP] - add better randomness
-        uint256 rand = uint(keccak256(abi.encodePacked(block.timestamp, block.difficulty)));
-        // resolve rand to a number between 0 and cardIds.length
+    function _getRandomCardId(PackType packType, uint256 randomness, uint256 index) private view returns (uint256) {
+        uint256[] memory cardIds = cardContract.getIdsByColorAndCardType(uint256(packType), uint256(Card.CardType.CLIMBER));
+        uint256 rand = uint256(keccak256(abi.encode(randomness, index)));
         return cardIds[rand % cardIds.length];
     }
 
-    function withdraw() public onlyPackMaster {
-        payable(msg.sender).transfer(address(this).balance);
+    function withdraw() external onlyOwner {
+        payable(owner()).transfer(address(this).balance);
     }
 
-    function setPackPrice(uint256 _packPrice) public onlyPackMaster {
-        PACK_PRICE = _packPrice;
+    function setPackPrice(uint256 _packPrice) external onlyOwner {
+        packPrice = _packPrice;
     }
 
-    function setDeckPrice(uint256 _deckPrice) public onlyPackMaster {
-        DECK_PRICE = _deckPrice;
+    function setDeckPrice(uint256 _deckPrice) external onlyOwner {
+        deckPrice = _deckPrice;
     }
 
-    function setPackMaster(address _packMaster) public onlyPackMaster {
-        packMaster = _packMaster;
-    }
-
-    function setCardContract(address _cardContract) public onlyPackMaster {
+    function setCardContract(address _cardContract) external onlyOwner {
         cardContract = Card(_cardContract);
     }
-
-    function getPackPrice() public view returns (uint256) {
-        return PACK_PRICE;
-    }
-
-    function getDeckPrice() public view returns (uint256) {
-        return DECK_PRICE;
-    }
-
-
 }
